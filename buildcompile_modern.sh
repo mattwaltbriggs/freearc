@@ -141,8 +141,9 @@ ghc --make Arc.hs \
   "$C_OBJDIR"/lstring.o "$C_OBJDIR"/lstrlib.o "$C_OBJDIR"/ltable.o \
   "$C_OBJDIR"/ltablib.o "$C_OBJDIR"/ltm.o "$C_OBJDIR"/lundump.o \
   "$C_OBJDIR"/lvm.o "$C_OBJDIR"/lzio.o \
+  -rtsopts \
   -optl-s -lstdc++ -lncurses -lcurl \
-  +RTS -A2m
+  +RTS -A2m -K8m
 
 rm -f Compression/CompressionLib_stub.?
 

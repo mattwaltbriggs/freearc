@@ -1,0 +1,45 @@
+# Build output
+Tests/arc
+/tmp/
+common.mak
+
+# Object files and Haskell build artifacts
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
+*_stub.[ch]
+*.p_hi
+*.p_o
+
+# HsLua build artifacts
+HsLua/dist/
+HsLua/dist-newstyle/
+HsLua/Setup.hi
+HsLua/Setup.o
+
+# Generated Haskell module copies (from build process)
+BufferData
+FastBufferData
+IO
+Int
+Ptr
+
+# Tabi generated
+Compression/_TABI/tabi.hs
+
+# macOS
+.DS_Store
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+
+# Temporary files
+==
+[a]
+[show

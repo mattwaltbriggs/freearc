@@ -29,7 +29,6 @@
  */
 
 #include <stdlib.h>
-#include <malloc.h>
 #include "entropy.h"
 #include "ttaenc.h"
 

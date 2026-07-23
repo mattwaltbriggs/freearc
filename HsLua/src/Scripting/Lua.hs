@@ -1,5 +1,5 @@
 
-{-# LANGUAGE ForeignFunctionInterface, TypeSynonymInstances, FlexibleInstances, OverlappingInstances #-}
+{-# LANGUAGE ForeignFunctionInterface, TypeSynonymInstances, FlexibleInstances, OverlappingInstances, ScopedTypeVariables #-}
 -- |
 -- Module      : Scripting.Lua
 -- Copyright   : (c) Gracjan Polak 2007,2008
@@ -184,6 +184,7 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.StablePtr
 import Control.Monad
+import Control.Exception (catch, SomeException)
 import Foreign.Marshal.Alloc
 import Data.IORef
 import qualified Foreign.Storable as F
@@ -195,7 +196,7 @@ newtype LuaState = LuaState (Ptr ())
 -- | Wrapper for @lua_Alloc@. See @lua_Alloc@ in Lua Reference Manual.
 type LuaAlloc = Ptr () -> Ptr () -> CInt -> CInt -> IO (Ptr ())
 -- | Wrapper for @lua_Reader@. See @lua_Reader@ in Lua Reference Manual.
-type LuaReader = Ptr () -> Ptr () -> Ptr CInt -> IO (Ptr CChar)
+type LuaReader = Ptr () -> Ptr () -> Ptr CSize -> IO (Ptr CChar)
 
 -- | Wrapper for @lua_Writer@. See @lua_Writer@ in Lua Reference Manual.
 type LuaWriter = LuaState -> Ptr CChar -> CInt -> Ptr () -> IO CInt
@@ -1006,7 +1007,7 @@ newcfunction = mkWrapper . luaimport
 -- Any Haskell exception will be converted to a string and returned
 -- as Lua error.
 luaimport :: LuaImport a => a -> LuaCFunction
-luaimport a l = luaimport' 1 a l `catch` (\e -> push l (show e) >> return (-1))
+luaimport a l = luaimport' 1 a l `catch` (\(e :: SomeException) -> push l (show e) >> return (-1))
 
 -- | Free function pointer created with @newcfunction@.
 freecfunction :: FunPtr LuaCFunction -> IO ()

@@ -3,7 +3,11 @@
 // LZ77 model *************************************************************************************
 
 typedef uint   HashVal;      // Result of hashing function
+#ifdef FREEARC_64BIT
+typedef uint64 PtrVal;       // Pointers to buf stored in HTable
+#else
 typedef uint32 PtrVal;       // Pointers to buf stored in HTable
+#endif
 typedef uint32 HintVal;      // Cached bytes from buf stored in HTable
 
 // Maximum number of bytes used for hashing in any match finder.

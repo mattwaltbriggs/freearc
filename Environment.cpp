@@ -7,7 +7,7 @@
 #include "Environment.h"
 #include "Compression/Compression.h"
 
-// Изменим настройки RTS, включив compacting GC начиная с 40 mb:
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ RTS, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ compacting GC пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ 40 mb:
 char *ghc_rts_opts = "-c1 -M4000m";
 
 
@@ -233,32 +233,39 @@ DWORD RegistryDeleteTree(HKEY hStartKey, LPTSTR pKeyName)
 
 
 #include <unistd.h>
-#include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 unsigned GetPhysicalMemory (void)
 {
-  struct sysinfo si;
-    sysinfo(&si);
-  return si.totalram*si.mem_unit;
+  unsigned long long memsize = 0;
+  size_t size = sizeof(memsize);
+  int mib[2] = { CTL_HW, HW_MEMSIZE };
+  sysctl(mib, 2, &memsize, &size, NULL, 0);
+  return (unsigned)memsize;
 }
 
 unsigned GetMaxMemToAlloc (void)
 {
-  //struct sysinfo si;
-  //  sysinfo(&si);
   return UINT_MAX;
 }
 
 unsigned GetAvailablePhysicalMemory (void)
 {
-  struct sysinfo si;
-    sysinfo(&si);
-  return si.freeram*si.mem_unit;
+  unsigned long long memsize = 0;
+  size_t size = sizeof(memsize);
+  int mib[2] = { CTL_HW, HW_MEMSIZE };
+  sysctl(mib, 2, &memsize, &size, NULL, 0);
+  return (unsigned)memsize;
 }
 
 int GetProcessorsCount (void)
 {
-  return get_nprocs();
+  int nprocs = 1;
+  size_t size = sizeof(nprocs);
+  int mib[2] = { CTL_HW, HW_NCPU };
+  sysctl(mib, 2, &nprocs, &size, NULL, 0);
+  return nprocs;
 }
 
 #endif // Windows/Unix
@@ -267,12 +274,12 @@ int GetProcessorsCount (void)
 void FormatDateTime (char *buf, int bufsize, time_t t)
 {
   struct tm *p;
-  if (t==-1)  t=0;  // Иначе получим вылет :(
+  if (t==-1)  t=0;  // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ :(
   p = localtime(&t);
   strftime( buf, bufsize, "%Y-%m-%d %H:%M:%S", p);
 }
 
-// Максимальная длина имени файла
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 int long_path_size (void)
 {
   return MY_FILENAME_MAX;
@@ -323,7 +330,7 @@ uint UpdateCRC( void *Addr, uint Size, uint StartCRC)
   return(StartCRC);
 }
 
-// Вычислить CRC блока данных
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ CRC пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 uint CalcCRC( void *Addr, uint Size)
 {
   return UpdateCRC (Addr, Size, INIT_CRC) ^ INIT_CRC;
@@ -331,7 +338,7 @@ uint CalcCRC( void *Addr, uint Size)
 
 
 
-// От-xor-ить два блока данных
+// пїЅпїЅ-xor-пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 void memxor (char *dest, char *src, uint size)
 {
   if (size) do
@@ -339,7 +346,7 @@ void memxor (char *dest, char *src, uint size)
   while (--size);
 }
 
-// Вернуть имя файла без имени каталога
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 FILENAME basename (FILENAME fullname)
 {
   char *basename = fullname;

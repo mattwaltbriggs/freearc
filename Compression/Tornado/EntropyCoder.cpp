@@ -590,7 +590,7 @@ public:
 #define NUM        2048             /* maximum number of symbols + 1 */
 #define INDEXES    2048             /* amount of indexes used for fast searching in cum[] table */
 #define RANGE      (1u<<RANGE_BITS) /* automagically, on each recalculation there are just RANGE symbols counted in livecnt[] */
-#define RANGE_BITS 14               /* the higher this value, тем реже происходят обновления статистики, но она при этом точнее */
+#define RANGE_BITS 14               /* the higher this value, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 
 template <CodecDirection type>
 struct TCounter
@@ -598,7 +598,7 @@ struct TCounter
     UINT n, remainder;
     UINT cnt[NUM], cum[NUM], livecnt[NUM], index[INDEXES];
 
-    TCounter (unsigned _n);
+    TCounter (unsigned _n = NUM);
 
     // Count one more occurence of symbol s
     // and recalculate encoding tables if enough symbols was counted since last recalculation
@@ -626,7 +626,7 @@ struct TCounter
 };
 
 template <CodecDirection type>
-TCounter<type> :: TCounter (unsigned _n = NUM)
+TCounter<type> :: TCounter (unsigned _n)
 {
     n = _n;
     // Initially, allot RANGE points equally to n symbols

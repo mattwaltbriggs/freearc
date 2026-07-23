@@ -1,7 +1,7 @@
-{-# OPTIONS_GHC -cpp -fno-monomorphism-restriction #-}
+{-# OPTIONS_GHC -cpp -XNoMonomorphismRestriction #-}
 ----------------------------------------------------------------------------------------------------
----- Упаковка и распаковка данных.                                                              ----
----- Интерфейс с написанными на Си процедурами, выполняющими всю реальную работу.               ----
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.                                                              ----
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.               ----
 ----------------------------------------------------------------------------------------------------
 #ifdef FREEARC_CELS
 module CompressionLib (module HsCELS) where
@@ -131,7 +131,7 @@ runWithMethod action method callback = do
 run action callback = do
   -- Ignore auxdata since we can do better with closures
   let callback2 cwhat buf size auxdata = do what <- peekCString cwhat
-                                            callback what buf (ii size) >>=return.ii
+                                            callback what buf (fromIntegral size :: Int) >>=return.fromIntegral
   bracket (mkCALL_BACK callback2) (freeHaskellFunPtr)$ \c_callback -> do   -- convert Haskell routine to C-callable routine
     action c_callback nullPtr
 
@@ -196,19 +196,19 @@ compressionErrorMessage x
 ----------------------------------------------------------------------------------------------------
 
 -- |Compress using callbacks
-foreign import ccall threadsafe  "Compression.h Compress"
+foreign import ccall safe  "Compression.h Compress"
    c_compress             :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |Decompress using callbacks
-foreign import ccall threadsafe  "Compression.h Decompress"
+foreign import ccall safe  "Compression.h Decompress"
    c_decompress           :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |Compress using callbacks and save method name in compressed output
-foreign import ccall threadsafe  "Compression.h CompressWithHeader"
+foreign import ccall safe  "Compression.h CompressWithHeader"
    c_CompressWithHeader   :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |Decompress data compressed with c_CompressWithHeader (method name is read from compressed stream)
-foreign import ccall threadsafe  "Compression.h DecompressWithHeader"
+foreign import ccall safe  "Compression.h DecompressWithHeader"
    c_DecompressWithHeader ::            FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 
@@ -217,19 +217,19 @@ foreign import ccall threadsafe  "Compression.h DecompressWithHeader"
 ----------------------------------------------------------------------------------------------------
 
 -- |Compress memory block
-foreign import ccall threadsafe  "Compression.h CompressMem"
+foreign import ccall safe  "Compression.h CompressMem"
    c_CompressMem             :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
 
 -- |Decompress memory block
-foreign import ccall threadsafe  "Compression.h DecompressMem"
+foreign import ccall safe  "Compression.h DecompressMem"
    c_DecompressMem           :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
 
 -- |Compress memory block and save method name in compressed output
-foreign import ccall threadsafe  "Compression.h CompressMemWithHeader"
+foreign import ccall safe  "Compression.h CompressMemWithHeader"
    c_CompressMemWithHeader   :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
 
 -- |Decompress memory block compressed with c_CompressMemWithHeader (method name is read from compressed data)
-foreign import ccall threadsafe  "Compression.h DecompressMemWithHeader"
+foreign import ccall safe  "Compression.h DecompressMemWithHeader"
    c_DecompressMemWithHeader ::            Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
 
 
@@ -286,35 +286,35 @@ foreign import ccall unsafe  "Compression.h LimitBlockSize"        c_LimitBlockS
 
 #if 0
 -- |PPMD compression
-foreign import ccall threadsafe  "PPMD/C_PPMD.h ppmd_compress"
+foreign import ccall safe  "PPMD/C_PPMD.h ppmd_compress"
    ppmd_compress   :: Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |PPMD decompression
-foreign import ccall threadsafe  "PPMD/C_PPMD.h ppmd_decompress"
+foreign import ccall safe  "PPMD/C_PPMD.h ppmd_decompress"
    ppmd_decompress :: Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |LZP compression
-foreign import ccall threadsafe  "LZP/C_LZP.h lzp_compress"
+foreign import ccall safe  "LZP/C_LZP.h lzp_compress"
    lzp_compress    :: Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |LZP decompression
-foreign import ccall threadsafe  "LZP/C_LZP.h lzp_decompress"
+foreign import ccall safe  "LZP/C_LZP.h lzp_decompress"
    lzp_decompress  :: Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |LZMA compression
-foreign import ccall threadsafe  "LZMA/C_LZMA.h lzma_compress"
+foreign import ccall safe  "LZMA/C_LZMA.h lzma_compress"
    lzma_compress   :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |LZMA decompression
-foreign import ccall threadsafe  "LZMA/C_LZMA.h lzma_decompress"
+foreign import ccall safe  "LZMA/C_LZMA.h lzma_decompress"
    lzma_decompress :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |GRZip compression
-foreign import ccall threadsafe  "GRZip/C_GRZip.h grzip_compress"
+foreign import ccall safe  "GRZip/C_GRZip.h grzip_compress"
    grzip_compress  :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 
 -- |GRZip decompression
-foreign import ccall threadsafe  "GRZip/C_GRZip.h grzip_decompress"
+foreign import ccall safe  "GRZip/C_GRZip.h grzip_decompress"
    grzip_decompress:: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
 #endif
 
@@ -328,7 +328,7 @@ foreign import ccall "Compression.h &" compress_all_at_once :: Ptr CInt
 
 -- |General callback function type
 type CALLBACK_FUNC  =  CString -> Ptr CChar -> CInt -> VoidPtr -> IO CInt
-foreign import ccall threadsafe "wrapper"
+foreign import ccall safe "wrapper"
    mkCALL_BACK :: CALLBACK_FUNC -> IO (FunPtr CALLBACK_FUNC)
 
 -- |Maximum length of string representing compression/encryption method

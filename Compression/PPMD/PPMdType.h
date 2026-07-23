@@ -13,12 +13,13 @@
 #ifdef FREEARC_WIN
 #include <windows.h>
 #else
+#include <stdint.h>
 typedef int   BOOL;
 #define FALSE 0
 #define TRUE  1
 typedef unsigned char  BYTE;
 typedef unsigned short WORD;
-typedef unsigned long  DWORD;
+typedef uint32_t       DWORD;
 typedef unsigned int   UINT;
 #endif
 

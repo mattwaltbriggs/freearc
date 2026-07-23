@@ -43,9 +43,9 @@
 #define LZP_XorFlag      (uint8)(0xFF^LZP_RunFlag)
 
 #define LZP_AllocHashTable()                                          \
-  uint8 ** Contexts=(uint8 **)BigAlloc((LZP_HT_Size+1)*sizeof(uint32)); \
+  uint8 ** Contexts=(uint8 **)BigAlloc((LZP_HT_Size+1)*sizeof(uint8*)); \
   if (Contexts==NULL) return (GRZ_NOT_ENOUGH_MEMORY);                 \
-  memset(Contexts,0,(LZP_HT_Size+1)*sizeof(uint32));
+  memset(Contexts,0,(LZP_HT_Size+1)*sizeof(uint8*));
 
 #define LZP_FreeHashTable() BigFree(Contexts);
 
@@ -75,7 +75,7 @@ sint32 GRZip_LZP_Encode(uint8 * Input,uint32 Size,uint8 * Output,uint32 LZP_MinM
      {
        uint32  CommonLength=0;
        uint8 * Ptr=Input;
-       if (*(uint32 *)(Ptr+LZP_MinMatchLen-4) == *(uint32 *)(Pointer+LZP_MinMatchLen-4))  // ранняя проверка
+       if (*(uint32 *)(Ptr+LZP_MinMatchLen-4) == *(uint32 *)(Pointer+LZP_MinMatchLen-4))  // раня┐╜я┐╜я┐╜ я┐╜ровя┐╜рка
          while (Ptr<InputEnd)
          {
            if (*Ptr++!=*Pointer++) break;

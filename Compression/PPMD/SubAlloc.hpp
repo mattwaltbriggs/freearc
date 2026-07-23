@@ -5,7 +5,7 @@
  *  Contents: memory allocation routines                                    *
  ****************************************************************************/
 
-enum { UNIT_SIZE=12, N1=4, N2=4, N3=4, N4=(128+3-1*N1-2*N2-3*N3)/4,
+enum { N1=4, N2=4, N3=4, N4=(128+3-1*N1-2*N2-3*N3)/4,
         N_INDEXES=N1+N2+N3+N4 };
 
 #pragma pack(1)
@@ -21,8 +21,19 @@ struct BLK_NODE {
     }
     inline void insert(void* pv,int NU);
 } BList[N_INDEXES];
-struct MEM_BLK: public BLK_NODE { DWORD NU; } _PACK_ATTR;
+// On 32-bit: sizeof(MEM_BLK)=12 matches UNIT_SIZE=12
+// On 64-bit: sizeof(MEM_BLK)=16, but PPM_CONTEXT needs 20 bytes,
+// so we pad MEM_BLK to 20 to match
+struct MEM_BLK: public BLK_NODE { DWORD NU;
+#if __SIZEOF_POINTER__ >= 8
+    DWORD _pad;
+#endif
+} _PACK_ATTR;
 #pragma pack()
+
+// UNIT_SIZE must be >= sizeof(PPM_CONTEXT) for AllocContext to work
+// and must match sizeof(MEM_BLK) for pointer arithmetic to be correct
+static const UINT UNIT_SIZE = sizeof(MEM_BLK);
 
 static BYTE Indx2Units[N_INDEXES], Units2Indx[128]; // constants
 static DWORD GlueCount, SubAllocatorSize=0;
@@ -36,10 +47,10 @@ inline void PrefetchData(void* Addr)
 }
 inline void BLK_NODE::insert(void* pv,int NU) {
     MEM_BLK* p=(MEM_BLK*) pv;               link(p);
-    p->Stamp=~0UL;                          p->NU=NU;
+    p->Stamp=~(DWORD)0;                     p->NU=NU;
     Stamp++;
 }
-inline UINT U2B(UINT NU) { return 8*NU+4*NU; }
+inline UINT U2B(UINT NU) { return UNIT_SIZE*NU; }
 inline void SplitBlock(void* pv,UINT OldIndx,UINT NewIndx)
 {
     UINT i, k, UDiff=Indx2Units[OldIndx]-Indx2Units[NewIndx];
@@ -86,7 +97,7 @@ static void GlueFreeBlocks()
             while ( BList[i].avail() ) {
                 p=(MEM_BLK*) BList[i].remove();
                 if ( !p->NU )               continue;
-                while ((p1=p+p->NU)->Stamp == ~0UL) {
+                while ((p1=p+p->NU)->Stamp == ~(DWORD)0) {
                     p->NU += p1->NU;        p1->NU=0;
                 }
                 p0->link(p);                p0=p;
@@ -135,12 +146,7 @@ inline void* AllocContext()
 }
 inline void UnitsCpy(void* Dest,void* Src,UINT NU)
 {
-    DWORD* p1=(DWORD*) Dest, * p2=(DWORD*) Src;
-    do {
-        p1[0]=p2[0];                        p1[1]=p2[1];
-        p1[2]=p2[2];
-        p1 += 3;                            p2 += 3;
-    } while ( --NU );
+    memcpy(Dest,Src,NU*UNIT_SIZE);
 }
 inline void* ExpandUnits(void* OldPtr,UINT OldNU)
 {
@@ -171,7 +177,7 @@ inline void FreeUnits(void* ptr,UINT NU) {
 inline void SpecialFreeUnit(void* ptr)
 {
     if ((BYTE*) ptr != UnitsStart)          BList->insert(ptr,1);
-    else { *(DWORD*) ptr=~0UL;              UnitsStart += UNIT_SIZE; }
+    else { *(DWORD*) ptr=~(DWORD)0;          UnitsStart += UNIT_SIZE; }
 }
 inline void* MoveUnitsUp(void* OldPtr,UINT NU)
 {
@@ -188,7 +194,7 @@ static inline void ExpandTextArea()
 {
     BLK_NODE* p;
     UINT Count[N_INDEXES];                  memset(Count,0,sizeof(Count));
-    while ((p=(BLK_NODE*) UnitsStart)->Stamp == ~0UL) {
+    while ((p=(BLK_NODE*) UnitsStart)->Stamp == ~(DWORD)0) {
         MEM_BLK* pm=(MEM_BLK*) p;           UnitsStart=(BYTE*) (pm+pm->NU);
         Count[Units2Indx[pm->NU-1]]++;      pm->Stamp=0;
     }

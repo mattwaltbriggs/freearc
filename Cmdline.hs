@@ -310,7 +310,7 @@ parseCmdline cmdline  =  (`mapMaybeM` split ";" cmdline) $ \args -> do
                           _    -> readInt ma
 
   -- ����� ������� ���������� ������� �������� � ���������� �������� ���������� ������, ������� ��� ������ ������������
-  setup_command <<= (CompressionLib.setCompressionThreads$  cthreads ||| i getProcessorsCount)   -- By default, use number of threads equal to amount of available processors/cores
+  setup_command <<= (CompressionLib.setCompressionThreads$  fromIntegral (cthreads ||| i getProcessorsCount))   -- By default, use number of threads equal to amount of available processors/cores
 
   -- ����������� �� ������ ��� ��������/����������
   let climit = parseLimit "75%"$ findReqArg o "LimitCompMem"   "--"

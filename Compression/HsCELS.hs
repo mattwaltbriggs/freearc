@@ -142,9 +142,9 @@ foreign import ccall safe "Compression.h CELS_Call"
 
 -- |Get/set number of threads used for (de)compression
 foreign import ccall unsafe  "Compression.h  GetCompressionThreads"
-  getCompressionThreads :: IO Int
+  getCompressionThreads :: IO CInt
 foreign import ccall unsafe  "Compression.h  SetCompressionThreads"
-  setCompressionThreads :: Int -> IO ()
+  setCompressionThreads :: CInt -> IO ()
 
 -- |Clear external compressors table
 foreign import ccall unsafe  "Compression.h  ClearExternalCompressorsTable"
@@ -152,7 +152,7 @@ foreign import ccall unsafe  "Compression.h  ClearExternalCompressorsTable"
 
 -- |Adds new external compresion method to the table
 foreign import ccall unsafe  "External/C_External.h  AddExternalCompressor"
-  c_AddExternalCompressor :: CString -> IO Int
+  c_AddExternalCompressor :: CString -> IO CInt
 
 foreign import ccall unsafe  "Compression.h compressionLib_cleanup"
   compressionLib_cleanup :: IO ()

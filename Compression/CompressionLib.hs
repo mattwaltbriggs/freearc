@@ -58,7 +58,9 @@ compressMemWithHeader   :: Method -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO 
 compressMemWithHeader   = withMethod c_CompressMemWithHeader
 -- |Decompress memory block compressed with compressMemWithHeader (method name is read from compressed data)
 decompressMemWithHeader ::           Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
-decompressMemWithHeader a b c d = c_DecompressMemWithHeader a b c d
+decompressMemWithHeader a b c d = do
+  result <- c_DecompressMemWithHeader a b c d
+  return (fromIntegral result :: Int)
 
 -- |Return canonical representation of compression method
 canonizeCompressionMethod :: Method -> Method
@@ -133,11 +135,13 @@ run action callback = do
   let callback2 cwhat buf size auxdata = do what <- peekCString cwhat
                                             callback what buf (fromIntegral size :: Int) >>=return.fromIntegral
   bracket (mkCALL_BACK callback2) (freeHaskellFunPtr)$ \c_callback -> do   -- convert Haskell routine to C-callable routine
-    action c_callback nullPtr
+    result <- action c_callback nullPtr
+    return (fromIntegral result :: Int)
 
 withMethod action method inp insize outp outsize = do
   withCString method $ \c_method -> do
-    action c_method inp insize outp outsize
+    result <- action c_method inp insize outp outsize
+    return (fromIntegral result :: Int)
 
 
 getWithMethod c_get method  =  unsafePerformIO$ withCString method c_get
@@ -151,7 +155,7 @@ generalDoWithMethod mType c_action method = do
   withCString method $ \c_method -> do
     allocaBytes aMAX_METHOD_STRLEN $ \c_out_method -> do
       ret <- c_action c_method c_out_method
-      case ret of
+      case (fromIntegral ret :: Int) of
         0 -> peekCString c_out_method
         _ -> fail$ "Unsupported "++mType++" method or error in parameters: "++method
 
@@ -197,19 +201,19 @@ compressionErrorMessage x
 
 -- |Compress using callbacks
 foreign import ccall safe  "Compression.h Compress"
-   c_compress             :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
+   c_compress             :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO CInt
 
 -- |Decompress using callbacks
 foreign import ccall safe  "Compression.h Decompress"
-   c_decompress           :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
+   c_decompress           :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO CInt
 
 -- |Compress using callbacks and save method name in compressed output
 foreign import ccall safe  "Compression.h CompressWithHeader"
-   c_CompressWithHeader   :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
+   c_CompressWithHeader   :: CMethod -> FunPtr CALLBACK_FUNC -> VoidPtr -> IO CInt
 
 -- |Decompress data compressed with c_CompressWithHeader (method name is read from compressed stream)
 foreign import ccall safe  "Compression.h DecompressWithHeader"
-   c_DecompressWithHeader ::            FunPtr CALLBACK_FUNC -> VoidPtr -> IO Int
+   c_DecompressWithHeader ::            FunPtr CALLBACK_FUNC -> VoidPtr -> IO CInt
 
 
 ----------------------------------------------------------------------------------------------------
@@ -218,19 +222,19 @@ foreign import ccall safe  "Compression.h DecompressWithHeader"
 
 -- |Compress memory block
 foreign import ccall safe  "Compression.h CompressMem"
-   c_CompressMem             :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
+   c_CompressMem             :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO CInt
 
 -- |Decompress memory block
 foreign import ccall safe  "Compression.h DecompressMem"
-   c_DecompressMem           :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
+   c_DecompressMem           :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO CInt
 
 -- |Compress memory block and save method name in compressed output
 foreign import ccall safe  "Compression.h CompressMemWithHeader"
-   c_CompressMemWithHeader   :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
+   c_CompressMemWithHeader   :: CMethod -> Ptr CChar -> Int -> Ptr CChar -> Int -> IO CInt
 
 -- |Decompress memory block compressed with c_CompressMemWithHeader (method name is read from compressed data)
 foreign import ccall safe  "Compression.h DecompressMemWithHeader"
-   c_DecompressMemWithHeader ::            Ptr CChar -> Int -> Ptr CChar -> Int -> IO Int
+   c_DecompressMemWithHeader ::            Ptr CChar -> Int -> Ptr CChar -> Int -> IO CInt
 
 
 ----------------------------------------------------------------------------------------------------
@@ -239,9 +243,9 @@ foreign import ccall safe  "Compression.h DecompressMemWithHeader"
 
 -- |Get/set number of threads used for (de)compression
 foreign import ccall unsafe  "Compression.h  GetCompressionThreads"
-   getCompressionThreads :: IO Int
+   getCompressionThreads :: IO CInt
 foreign import ccall unsafe  "Compression.h  SetCompressionThreads"
-   setCompressionThreads :: Int -> IO ()
+   setCompressionThreads :: CInt -> IO ()
 
 -- |Clear external compressors table
 foreign import ccall unsafe  "Compression.h  ClearExternalCompressorsTable"
@@ -249,11 +253,11 @@ foreign import ccall unsafe  "Compression.h  ClearExternalCompressorsTable"
 
 -- |Adds new external compresion method to the table
 foreign import ccall unsafe  "External/C_External.h  AddExternalCompressor"
-   c_AddExternalCompressor   :: CString -> IO Int
+   c_AddExternalCompressor   :: CString -> IO CInt
 
 -- |Returns canonical representation of compression method or error code
 foreign import ccall unsafe  "Compression.h  CanonizeCompressionMethod"
-   c_CanonizeCompressionMethod   :: CMethod -> CMethod -> IO Int
+   c_CanonizeCompressionMethod   :: CMethod -> CMethod -> IO CInt
 
 foreign import ccall unsafe  "Compression.h CompressionService"
    c_CompressionService :: CMethod -> CString -> CInt -> VoidPtr -> FunPtr CALLBACK_FUNC -> IO CInt
@@ -268,16 +272,16 @@ foreign import ccall unsafe  "Compression.h GetDictionary"       c_GetDictionary
 foreign import ccall unsafe  "Compression.h GetBlockSize"        c_GetBlockSize        :: CMethod -> IO MemSize
 
 -- |Set memory used to compress/decompress, dictionary or block size of method given
-foreign import ccall unsafe  "Compression.h SetCompressionMem"   c_SetCompressionMem   :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h SetDecompressionMem" c_SetDecompressionMem :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h SetDictionary"       c_SetDictionary       :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h SetBlockSize"        c_SetBlockSize        :: CMethod -> MemSize -> CMethod -> IO Int
+foreign import ccall unsafe  "Compression.h SetCompressionMem"   c_SetCompressionMem   :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h SetDecompressionMem" c_SetDecompressionMem :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h SetDictionary"       c_SetDictionary       :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h SetBlockSize"        c_SetBlockSize        :: CMethod -> MemSize -> CMethod -> IO CInt
 
 -- |Put upper limit to memory used to compress/decompress, dictionary or block size of method given
-foreign import ccall unsafe  "Compression.h LimitCompressionMem"   c_LimitCompressionMem   :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h LimitDecompressionMem" c_LimitDecompressionMem :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h LimitDictionary"       c_LimitDictionary       :: CMethod -> MemSize -> CMethod -> IO Int
-foreign import ccall unsafe  "Compression.h LimitBlockSize"        c_LimitBlockSize        :: CMethod -> MemSize -> CMethod -> IO Int
+foreign import ccall unsafe  "Compression.h LimitCompressionMem"   c_LimitCompressionMem   :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h LimitDecompressionMem" c_LimitDecompressionMem :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h LimitDictionary"       c_LimitDictionary       :: CMethod -> MemSize -> CMethod -> IO CInt
+foreign import ccall unsafe  "Compression.h LimitBlockSize"        c_LimitBlockSize        :: CMethod -> MemSize -> CMethod -> IO CInt
 
 
 ----------------------------------------------------------------------------------------------------

@@ -83,11 +83,19 @@ Methods can be chained with `+` to create compression pipelines. Each method run
 | `lzma+delta+lzma` | LZMA + Delta + LZMA | Verified |
 | `delta+lzma` | Delta filter + LZMA | Verified |
 
+### Branch Filters
+
+| Method | Description | Status |
+|--------|-------------|--------|
+| `bcj` / `exe` | x86 branch filter (E8/E9 CALL/JMP conversion) | Available (x86 code only) |
+| `arm64` / `bcj_arm64` | AArch64 branch filter (B/BL imm26 conversion) | Verified |
+
+The `arm64` filter converts relative branch offsets in ARM64 B/BL instructions to absolute addresses, improving LZ compression of ARM64 executables. Use `-marm64+lzma` for best compression of ARM64 binaries (~4% improvement over LZMA alone).
+
 ### Not Working
 
 | Method | Reason |
 |--------|--------|
-| `bcj_x86` | x86 branch filter — not applicable on ARM64 |
 | `cls` | Requires external CLS library (not compiled) |
 | `ppmonstr` | Requires external PPMONSTR binary (not included) |
 
@@ -274,6 +282,7 @@ The gtk2hs packages need to be built with local patches:
 
 ## Releases
 
+- [v0.62-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.62) — AArch64 BCJ filter for ARM64 executables, version 0.62
 - [v0.61-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.61-macos-arm64) — Working GTK+3 GUI, version 0.61
 - [v0.60-rc2-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.60-rc2-macos-arm64) — Pipeline crash fix, CHECK macro heap allocation, version RC2
 - [v0.60-rc-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.60-rc-macos-arm64) — Initial port: all codecs, GHC 9 compatibility, 64-bit fixes

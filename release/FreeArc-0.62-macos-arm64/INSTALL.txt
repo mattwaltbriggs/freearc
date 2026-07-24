@@ -1,0 +1,25 @@
+FreeArc 0.62 for macOS arm64 (Apple Silicon)
+=============================================
+
+Installation:
+  1. Copy arc and arc-gui to a directory in your PATH
+  2. Copy arc.groups to the same directory
+  3. Make executable: chmod +x arc arc-gui
+
+Usage:
+  CLI:  arc a archive.arc files...    (create archive)
+        arc x archive.arc             (extract archive)
+        arc l archive.arc             (list archive contents)
+
+  GUI:  arc-gui                       (launch file manager)
+
+Compression methods:
+  Stored:  storing
+  LZMA:    lzma, lzma:64m, lzma:128m:max
+  BCJ:     bcj (x86), bcj_arm64 (arm64)
+  Combo:   bcj_arm64+lzma, rep+lzma
+
+Examples:
+  arc a -m3 files.arc documents/
+  arc a -marm64+lzma binary.arc program
+  arc x -o+ archive.arc

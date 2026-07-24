@@ -412,6 +412,7 @@ builtinMethodSubsts = [
     , ""
     , ";Synonyms"
     , "bcj = exe"
+    , "bcj_arm64 = arm64"
     , "#bx = #xb"
     , "#tx = #xt"
     , "x#  = #x"    -- ��������� ����� ���� "-mx7" ��� �������� ��� 7-zip

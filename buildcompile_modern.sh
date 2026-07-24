@@ -75,6 +75,11 @@ g++ -c -fno-exceptions -fno-rtti -O2 -fomit-frame-pointer -ffast-math -fstrict-a
   -g0 -DFREEARC_UNIX -DFREEARC_INTEL_BYTE_ORDER \
   Compression/LZMA/C_BCJ.cpp -o "$C_OBJDIR/C_BCJ.o"
 
+# BCJ AArch64
+g++ -c -fno-exceptions -fno-rtti -O2 -fomit-frame-pointer -ffast-math -fstrict-aliasing \
+  -g0 -DFREEARC_UNIX -DFREEARC_INTEL_BYTE_ORDER \
+  Compression/LZMA2/C_BCJ_AArch64.cpp -o "$C_OBJDIR/C_BCJ_AArch64.o"
+
 # PPMD
 g++ -c -fno-exceptions -fno-rtti -O1 -fomit-frame-pointer -ffast-math -fstrict-aliasing \
   -g0 -DFREEARC_UNIX -DFREEARC_INTEL_BYTE_ORDER \
@@ -118,6 +123,7 @@ ghc --make Arc.hs \
   "$C_OBJDIR"/C_LZP.o \
   "$C_OBJDIR"/C_LZMA.o \
   "$C_OBJDIR"/C_BCJ.o \
+  "$C_OBJDIR"/C_BCJ_AArch64.o \
   "$C_OBJDIR"/C_GRZip.o \
   "$C_OBJDIR"/C_Dict.o \
   "$C_OBJDIR"/C_REP.o \

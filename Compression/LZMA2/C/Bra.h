@@ -60,6 +60,7 @@ SizeT ARMT_Convert(Byte *data, SizeT size, UInt32 ip, int encoding);
 SizeT PPC_Convert(Byte *data, SizeT size, UInt32 ip, int encoding);
 SizeT SPARC_Convert(Byte *data, SizeT size, UInt32 ip, int encoding);
 SizeT IA64_Convert(Byte *data, SizeT size, UInt32 ip, int encoding);
+SizeT AArch64_Convert(Byte *data, SizeT size, UInt32 ip, int encoding);
 
 #ifdef __cplusplus
 }

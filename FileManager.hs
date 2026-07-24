@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp #-}
+{-# OPTIONS_GHC -cpp -XNondecreasingIndentation #-}
 ----------------------------------------------------------------------------------------------------
 ---- FreeArc archive manager                                                                  ------
 ----------------------------------------------------------------------------------------------------
@@ -8,6 +8,7 @@ import Prelude hiding (catch)
 import Control.Concurrent
 import Control.Exception
 import Control.Monad
+import Control.Monad.IO.Class (liftIO)
 import Data.Char
 import Data.IORef
 import Data.List
@@ -21,8 +22,15 @@ import System.Win32
 import Foreign.Ptr
 #endif
 
-import Graphics.UI.Gtk
+import Graphics.UI.Gtk hiding (on)
 import Graphics.UI.Gtk.ModelView as New
+import qualified System.Glib.Signals as GtkSigs
+import Graphics.UI.Gtk.Abstract.Widget (keyPressEvent, buttonPressEvent, configureEvent, windowStateEvent)
+import Graphics.UI.Gtk.ActionMenuToolbar.Action (actionActivated)
+import Graphics.UI.Gtk.Gdk.EventM (eventCoordinates, eventButton, eventClick, eventWindowState, eventKeyName)
+import Graphics.UI.Gtk.Entry.Entry (entryActivated)
+import Graphics.UI.Gtk.Abstract.Object (objectDestroy)
+import qualified Data.Text as T
 
 import Utils
 import Errors
@@ -46,7 +54,7 @@ import FileManDialogAdd
 aMAX_CMDLINE_LENGTH = 32000 `div` 4
 
 ----------------------------------------------------------------------------------------------------
----- Обработка GUI-специфичных вариаций командной строки -------------------------------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ GUI-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ -------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
 parseGUIcommands run args exec = do
@@ -54,16 +62,16 @@ parseGUIcommands run args exec = do
       add     fm' exec cmd files    = addDialog     fm' exec cmd files NoMode
   loadTranslation
   case args of
-    ["--settings-dialog"] -> openSettingsDialog               -- Диалог настроек
-    "--add-dialog":xs     -> openDialog xs exec add           -- Диалог упаковки
-    "--extract-dialog":xs -> openDialog xs exec extract       -- Диалог распаковки
-    ["--register"]        -> registerShellExtensions Nothing  -- Регистрация в Explorer
-    ["--unregister"]      -> unregisterShellExtensions        -- Удаление регистрации в Explorer
-    []                    -> myGUI run args                   -- При вызове программы без аргументов или с одним аргументом (именем каталога/архива)
-    [_]                   -> myGUI run args                   --   запускаем полноценный Archive Manager
-    _                     -> startGUI >> exec args            --   а иначе - просто отрабатываем команды (де)архивации
+    ["--settings-dialog"] -> openSettingsDialog               -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    "--add-dialog":xs     -> openDialog xs exec add           -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    "--extract-dialog":xs -> openDialog xs exec extract       -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    ["--register"]        -> registerShellExtensions Nothing  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ Explorer
+    ["--unregister"]      -> unregisterShellExtensions        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ Explorer
+    []                    -> myGUI run args                   -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅ)
+    [_]                   -> myGUI run args                   --   пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Archive Manager
+    _                     -> startGUI >> exec args            --   пїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ)пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
--- Диалог настроек
+-- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 openSettingsDialog = do
   startGUI
   gui $ do
@@ -71,7 +79,7 @@ openSettingsDialog = do
     settingsDialog fm'
     mainQuit
 
--- Открыть диалог (рас)паковки и затем выполнить запрошенную команду
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ)пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 openDialog (cmd:"--":params) exec dialog = do
   startGUI
   cmdChan <- newChan
@@ -89,13 +97,13 @@ openDialog params exec dialog = do
 
 
 ----------------------------------------------------------------------------------------------------
----- Главное меню программы и тулбар под ним -------------------------------------------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ -------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 --      File: New Archive, Open Archive, New SFX, Change Drive, Select All, Select Group, Deselect Group, Invert Selection
---      Commands (или Actions): Add, Extract, Test, ArcInfo, View, Delete, Rename
---      Tools: Wizard (если таковой будет), Protect, Comment, Convert to EXE, Encrypt, Add Recovery record, Repair
+--      Commands (пїЅпїЅпїЅ Actions): Add, Extract, Test, ArcInfo, View, Delete, Rename
+--      Tools: Wizard (пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ), Protect, Comment, Convert to EXE, Encrypt, Add Recovery record, Repair
 --      Options: Configuration, Save settings, Load settings, View log, Clear log
---      Help: собственно сам Help, Goto Homepage (и/или Check for update), About
+--      Help: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ Help, Goto Homepage (пїЅ/пїЅпїЅпїЅ Check for update), About
 
 uiDef =
   "<ui>"++
@@ -172,17 +180,17 @@ uiDef =
 
 
 ----------------------------------------------------------------------------------------------------
----- Визуальная часть файл-менеджера ---------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ---------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
 myGUI run args = do
   fileManagerMode =: True
   runGUI $ do
-  parseCmdline ["l", "a"]   -- инициализация: display, логфайл
-  -- Список ассоциаций клавиша->действие
+  --parseCmdline ["l", "a"]   -- Removed: causes 10s+ delay in GUI mode due to missing config files
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ->пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   onKeyActions <- newList
   let onKey = curry (onKeyActions <<=)
-  -- Создадим окно индикатора прогресса и загрузим настройки/локализацию
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   (windowProgress, (clearMessageBox,showMessageBox)) <- runIndicators
   -- Main menu
   standardGroup <- actionGroupNew "standard"
@@ -249,7 +257,7 @@ myGUI run args = do
   (Just toolBar) <- uiManagerGetWidget ui "/ui/toolbar"
 
   (listUI, listView, listModel, listSelection, columns, onColumnTitleClicked) <- createFilePanel
-  statusLabel  <- labelNew Nothing
+  statusLabel  <- labelNew (Nothing :: Maybe String)
   miscSetAlignment statusLabel 0 0.5
   messageCombo <- New.comboBoxNewText
   statusbar    <- statusbarNew
@@ -261,28 +269,28 @@ myGUI run args = do
   boxPackStart lowBox messageCombo PackGrow    2
   --boxPackStart lowBox statusbar    PackNatural 0
 
-  -- Создадим переменную для хранения текущего состояния файл-менеджера
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   fm' <- newFM window listView listModel listSelection statusLabel messageCombo
   fmUpdateConfigFiles fm'
 
-  -- Отрихтуем тулбар
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
   let toolbar = castToToolbar toolBar
   toolbarCaptions <- fmGetHistoryBool fm' "ToolbarCaptions" True
   toolbar `set` [toolbarStyle := if toolbarCaptions then ToolbarBoth else ToolbarIcons]
-  toolbar `toolbarSetIconSize` iconSizeLargeToolbar
+  -- toolbarSetIconSize toolbar IconSizeLargeToolbar
   n <- toolbarGetNItems toolbar
   for [0..n-1] $ \i -> do
     Just button <- toolbarGetNthItem toolbar i
     toolItemSetHomogeneous button False
 
-  -- Полоска навигации
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   naviBar  <- hBoxNew False 0
   upButton <- button "0006   Up  "
   curdir   <- fmEntryWithHistory fm' "dir/arcname" (const$ return True) (fmCanonicalizePath fm')
   saveDirButton <- button "0007   Save  "
   boxPackStart naviBar (widget upButton)       PackNatural 0
 #if defined(FREEARC_WIN)
-  -- Меню выбора диска
+  -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
   driveButton <- button "C:"
   driveMenu   <- makePopupMenu (chdir fm'.(++"\\").head.words) =<< getDrives
   driveButton `onClick` (widgetShowAll driveMenu >> menuPopup driveMenu Nothing)
@@ -291,7 +299,7 @@ myGUI run args = do
   boxPackStart naviBar (widget curdir)         PackGrow    0
   boxPackStart naviBar (widget saveDirButton)  PackNatural 0
 
-  -- Целиком окно файл-менеджера
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   vBox <- vBoxNew False 0
   set vBox [boxHomogeneous := False]
   boxPackStart vBox menuBar   PackNatural 0
@@ -303,19 +311,20 @@ myGUI run args = do
   containerAdd window vBox
 
 
-  -- Список действий, выполняемых при закрытии окна файл-менеджера
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   onExit <- newList
 
-  -- Список ассоциаций клавиша->действие
-  listView `onKeyPress` \event -> do
-    x <- lookup (eventKey event) `fmap` listVal onKeyActions
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ->пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on listView keyPressEvent $ do
+    name <- eventKeyName
+    x <- liftIO $ lookup (T.unpack name) `fmap` listVal onKeyActions
     case x of
-      Just action -> do action; return True
+      Just action -> do liftIO action; return True
       Nothing     -> return False
 
 
 ----------------------------------------------------------------------------------------------------
----- Сохранение/восстановление размера и положения главного окна и колонок в нём -------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ -------------------
 ----------------------------------------------------------------------------------------------------
 
   window `windowSetPosition` WinPosCenter
@@ -325,24 +334,25 @@ myGUI run args = do
   --window `windowSetPosition` WinPosNone
   --windowSetDefaultSize window 200 100
 
-  -- При старте восстановим сохранённый размер окна
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
   fmRestoreSizePos fm' window "MainWindow" "-10000 -10000 720 500"
 
-  -- Сохраним размер и положение главного окна после его перемещения
-  window `onConfigure` \e -> do
-    fmSaveSizePos fm' window "MainWindow"
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on window configureEvent $ do
+    liftIO $ fmSaveSizePos fm' window "MainWindow"
     return False
 
-  -- Запомним, было ли окно максимизировано
-  window `onWindowState` \e -> do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on window windowStateEvent $ do
     let isMax x = case x of
                     WindowStateMaximized -> True
                     _                    -> False
-    fmSaveMaximized fm' "MainWindow" (any isMax (eventWindowState e))
+    ws <- eventWindowState
+    liftIO $ fmSaveMaximized fm' "MainWindow" (any isMax ws)
     return False
 
 
-  -- При закрытии программы сохраним порядок и ширину колонок
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   onExit <<= do
     colnames  <-  New.treeViewGetColumns listView  >>=  mapM New.treeViewColumnGetTitle
     fmReplaceHistory fm' "ColumnOrder" (unwords$ catMaybes colnames)
@@ -350,7 +360,7 @@ myGUI run args = do
       w <- New.treeViewColumnGetWidth col1
       fmReplaceHistory fm' (name++"ColumnWidth") (show w)
 
-  -- При старте восстановим сохранённые порядок и ширину колонок
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   order <- (reverse.words) `fmap` fmGetHistory1 fm' "ColumnOrder" ""
   for order $ \colname -> do
     whenJust (lookup colname columns) $
@@ -361,115 +371,117 @@ myGUI run args = do
 
 
 ----------------------------------------------------------------------------------------------------
----- Навигационная часть файл-менеджера ------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
 --  for [upButton,saveDirButton] (`buttonSetFocusOnClick` False)
 
-  -- Выводить errors/warnings/messages внизу окна FreeArc
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ errors/warnings/messages пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ FreeArc
   showErrors' <- ref True
   errorHandlers   ++= [whenM (val showErrors') . condPrintLineLn "w"]
   errorHandlers   ++= [whenM (val showErrors') . postGUIAsync . fmStackMsg fm']
   warningHandlers ++= [whenM (val showErrors') . postGUIAsync . fmStackMsg fm']
   loggingHandlers ++= [postGUIAsync . fmStackMsg fm']
 
-  -- Отключает вывод сообщений об ошибках на время выполнения action
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ action
   let hideErrors action  =  bracket (showErrors' <=> False)  (showErrors' =: )  (\_ -> action)
 
-  -- Перехват и обработка ошибок
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
   errorMsg <- ref ""
   errorHandlers ++= [(errorMsg =:)]
-  let withErrorHandler onError = handle$ \e->do operationTerminated =: False
-                                                fmErrorMsg fm' =<< val errorMsg
-                                                sequence_ onError
-  -- При возникновении ошибки выдать её пользователю
+  let withErrorHandler onError = handle (\(e :: SomeException) -> do
+        operationTerminated =: False
+        fmErrorMsg fm' =<< val errorMsg
+        sequence_ onError)
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let msgboxOnError = withErrorHandler []
-  -- При возникновении ошибки выдать её пользователю и заверщить выполнение программы
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let terminateOnError = withErrorHandler [shutdown "" aEXIT_CODE_FATAL_ERROR]
 
 
-  -- Перейти в заданный каталог/архив или выполнить команду
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let select filename = do
         fm <- val fm'
-        handle (\e -> (operationTerminated =: False) >> runFile filename (fm_curdir fm) False) $ do    -- при неудаче перехода запустим файл :)
+        handle (\(_ :: SomeException) -> (operationTerminated =: False) >> runFile filename (fm_curdir fm) False) $ do    -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ :)
           hideErrors $ do
             chdir fm' filename
             New.treeViewScrollToPoint (fm_view fm) 0 0
             --New.treeViewSetCursor (fm_view fm) [0] Nothing
 
-  -- Переход в родительский каталог
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let goParentDir = do
         fm <- val fm'
-        unless (isFM_Archive fm  &&  isURL(fm_arcname fm)  &&  fm_arcdir fm=="") $ do  -- Запретить Up из архива в инете
+        unless (isFM_Archive fm  &&  isURL(fm_arcname fm)  &&  fm_arcdir fm=="") $ do  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Up пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
         chdir fm' ".."
-        -- Выбираем каталог/архив, из которого мы только что вышли
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         fmSetCursor fm' (takeFileName$ fm_current fm)
 
-  -- Запись текущего каталога в историю
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let saveCurdirToHistory = do
         fm <- val fm'
         fmAddHistory fm' (isFM_Archive fm.$bool "dir" "arcname") =<< fmCanonicalizePath fm' =<< val curdir
 
 
-  -- При нажатии Enter на строке в списке открываем выбранный архив/каталог
-  listView `New.onRowActivated` \path column -> do
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Enter пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on listView New.rowActivated $ \path column -> do
     fm <- val fm'
     file <- fmFileAt fm' path
     unless (isFM_Archive fm  &&  not(fdIsDir file)) $ do  -- Run command don't yet work directly from archives
     select (fmname file)
 
-  -- При single-click на свободном пространстве справа/снизу снимаем отметку со всех файлов,
-  -- при double-click там же выбираем все файлы
-  listView `onButtonPress` \e -> do
-    path <- New.treeViewGetPathAtPos listView (round$ eventX e, round$ eventY e)
+  -- пїЅпїЅпїЅ single-click пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ,
+  -- пїЅпїЅпїЅ double-click пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on listView buttonPressEvent $ do
+    (ex, ey) <- eventCoordinates
+    path <- liftIO $ New.treeViewGetPathAtPos listView (round ex, round ey)
     coltitle <- case path of
-                  Just (_,column,_) -> New.treeViewColumnGetTitle column >>== fromMaybe ""
+                  Just (_,column,_) -> liftIO $ New.treeViewColumnGetTitle column >>== fromMaybe ""
                   _                 -> return ""
-    -- Пустая строка в coltitle означает клик за пределами списка файлов
-    coltitle=="" &&& e.$eventButton==LeftButton &&&
-      ((if e.$eventClick==SingleClick  then fmUnselectAll  else fmSelectAll) fm'  >>  return True)
+    btn <- eventButton
+    clk <- eventClick
+    liftIO $ coltitle=="" &&& btn==LeftButton &&&
+      ((if clk==SingleClick  then fmUnselectAll  else fmSelectAll) fm'  >>  return True)
 
-  -- При переходе в другой каталог/архив отобразить его имя в строке ввода
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
   fm' `fmOnChdir` do
     fm <- val fm'
     curdir =: fm_current fm
-    -- Сохраняем в историю имена архивов
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     isFM_Archive fm  &&&  fm_arcdir fm==""  &&&  saveCurdirToHistory
-    -- Перечитаем историю с диска
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
     rereadHistory curdir
 
-  -- При переходе в другой каталог/архив - отобразить его имя в заголовке окна
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
   fm' `fmOnChdir` do
     fm <- val fm'
     let title | isFM_Archive fm  =  takeFileName (fm_arcname fm) </> fm_arcdir fm
               | otherwise        =  takeFileName (fm_dir fm)  |||  fm_dir fm
     set (fm_window fm) [windowTitle := title++" - "++aARC_NAME]
 
-  -- Переходим в род. каталог по кнопке Up или нажатию BackSpace в списке файлов
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ Up пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ BackSpace пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
   upButton  `onClick` goParentDir
   "BackSpace" `onKey` goParentDir
 
-  -- Сохранение выбранного архива/каталога в истории
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   saveDirButton `onClick` do
     saveCurdirToHistory
 
-  -- Открытие другого каталога или архива (Enter в строке ввода)
-  entry curdir `onEntryActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (Enter пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
+  GtkSigs.on (entry curdir) entryActivated $ do
     saveCurdirToHistory
     select =<< val curdir
 
-  -- Открытие другого каталога или архива (выбор из истории)
-  widget curdir `New.onChanged` do
-    whenJustM_ (New.comboBoxGetActive$ widget curdir) $ \_ -> do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+  GtkSigs.on (entry curdir) entryActivated $ do
     saveCurdirToHistory
     select =<< val curdir
 
-  -- Выполнить action над файлами, состоящими в соотношении makeRE с именем файла под курсором
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ action пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ makeRE пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let byFile action makeRE = do
         filename <- fmGetCursor fm'
         action fm' ((match$ makeRE filename).fdBasename)
 
-  -- Клавиши Shift/Ctrl/Alt-Plus/Minus с теми же операциями как в FAR
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Shift/Ctrl/Alt-Plus/Minus пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ FAR
   "<Shift>KP_Add"      `onKey` fmSelectAll   fm'
   "<Shift>KP_Subtract" `onKey` fmUnselectAll fm'
   "<Ctrl>KP_Add"       `onKey` byFile fmSelectFilenames   (("*" ++).takeExtension)
@@ -478,22 +490,22 @@ myGUI run args = do
   "<Alt>KP_Subtract"   `onKey` byFile fmUnselectFilenames ((++".*").dropExtension)
 
 
-  -- При нажатии заголовка столбца в списке файлов - сортировать по этому столбцу
-  --   (при повторном нажатии - сортировать в обратном порядке)
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  --   (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
   onColumnTitleClicked =: \column -> do
     fmModifySortOrder fm' (showSortOrder columns) (calcNewSortOrder column)
     refreshCommand fm'
-    fmSaveSortOrder  fm' =<< fmGetSortOrder fm'  -- запишем в конфиг порядок сортировки
+    fmSaveSortOrder  fm' =<< fmGetSortOrder fm'  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
-  -- Отсортируем файлы по сохранённому критерию
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   fmSetSortOrder fm' (showSortOrder columns) =<< fmRestoreSortOrder fm'
 
 
 ----------------------------------------------------------------------------------------------------
----- Движок выполнения консольных команд внутри FM gui ---------------------------------------------
+---- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ FM gui ---------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
-  -- При выполнении операций не выходим по исключениям, а печатаем сообщения о них в логфайл
+  -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let myHandleErrors action  =  do operationTerminated =: False
                                    parent_id =:: myThreadId
                                    action `catch` handler
@@ -506,17 +518,14 @@ myGUI run args = do
                 forkIO (foreverM (sleepSeconds 0.01 >> whenM (val operationTerminated) (putMVar done ())))
                 takeMVar done
 
-              handler ex = do
+              handler (ex :: SomeException) = do
                 unlessM (val operationTerminated) $ do
-                  errmsg <- case ex of
-                     Deadlock    -> i18n"0011 No threads to run: infinite loop or deadlock?"
-                     ErrorCall s -> return s
-                     other       -> return$ show ex
+                  let errmsg = displayException ex
                   condPrintLineLn "w" errmsg
                   return ()
                 condPrintLineLn "w" ""
 
-  -- Тред, выполняющий команды архиватора
+  -- пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   cmdChan <- newChan
   forkIO $ do
     foreverM $ do
@@ -525,7 +534,7 @@ myGUI run args = do
       postGUIAsync$ do widgetShowAll windowProgress
       for commands $ \cmd -> do
         myHandleErrors (parseCmdline cmd >>= mapM_ run)
-      whenM (isEmptyChan cmdChan)$ postGUIAsync$ do widgetHide windowProgress; clearMessageBox; warningsBefore =:: val warnings; refreshCommand fm'
+      postGUIAsync$ do widgetHide windowProgress; clearMessageBox; warningsBefore =:: val warnings; refreshCommand fm'
       --uiDoneProgram
 
   -- Depending on execution mode, either queue commands or run external FreeArc instances
@@ -543,7 +552,7 @@ myGUI run args = do
 
           else writeChan cmdChan cmds
 
-  -- Закрытие окна файл-менеджера
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let closeMainWindow = do
         sequence_ =<< listVal onExit
         fileManagerMode =: False
@@ -551,15 +560,15 @@ myGUI run args = do
         widgetHide window
         writeChan cmdChan [["ExitProgram"]]
 
-  window `onDestroy` closeMainWindow
+  GtkSigs.on window objectDestroy $ closeMainWindow
 
 
 ----------------------------------------------------------------------------------------------------
----- Меню File -------------------------------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅ File -------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
-  -- Открыть архив
-  openAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on openAct actionActivated $ do
     fm <- val fm'
     let curfile  =  if isFM_Archive fm  then fm_arcname fm  else fm_dir fm </> "."
     chooseFile window FileChooserActionOpen "0305 Open archive" aARCFILE_FILTER (return curfile) $ \filename -> do
@@ -570,53 +579,53 @@ myGUI run args = do
   let byDialog method msg = do
         whenJustM_ (fmInputString fm' "mask" msg (const$ return True) return) $ \mask -> do
           method fm' ((match mask).fdBasename)
-  selectAct   `onActionActivate`  byDialog fmSelectFilenames   "0008 Select files"
-  unselectAct `onActionActivate`  byDialog fmUnselectFilenames "0009 Unselect files"
+  GtkSigs.on selectAct actionActivated $  byDialog fmSelectFilenames   "0008 Select files"
+  GtkSigs.on unselectAct actionActivated $  byDialog fmUnselectFilenames "0009 Unselect files"
 
-  -- Выделить все файлы
-  selectAllAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on selectAllAct actionActivated $ do
     fmSelectAll fm'
 
-  -- Инвертировать выделение
-  invertSelAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on invertSelAct actionActivated $ do
     fmInvertSelection fm'
 
-  -- Обновить список файлов актуальными данными
-  refreshAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on refreshAct actionActivated $ do
     refreshCommand fm'
 
-  -- Выход из программы
-  exitAct `onActionActivate`
+  -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on exitAct actionActivated
     closeMainWindow
 
 
 ----------------------------------------------------------------------------------------------------
----- Меню Commands ---------------------------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅ Commands ---------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
-  -- Упаковка данных
-  addAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on addAct actionActivated $ do
     compressionOperation fm' addDialog exec "a" NoMode
 
-  -- Распаковка архив(ов)
-  extractAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ(пїЅпїЅ)
+  GtkSigs.on extractAct actionActivated $ do
     archiveOperation fm' $
       extractDialog fm' exec "x"
     rereadHistory curdir
 
-  -- Тестирование архив(ов)
-  testAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ(пїЅпїЅ)
+  GtkSigs.on testAct actionActivated $ do
     archiveOperation fm' $
       extractDialog fm' exec "t"
 
-  -- Информация об архиве
-  arcinfoAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on arcinfoAct actionActivated $ do
     msgboxOnError $
       archiveOperation fm' $
         arcinfoDialog fm' exec NoMode
 
-  -- Удаление файлов (из архива)
-  deleteAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
+  GtkSigs.on deleteAct actionActivated $ do
     fm <- val fm'
     files <- getSelection fm' (if isFM_Archive fm  then xCmdFiles  else const [])
     if null files  then fmErrorMsg fm' "0012 There are no files selected!" else do
@@ -627,20 +636,20 @@ myGUI run args = do
     whenM (askOkCancel window (formatn msg [head files, show3$ length files])) $ do
       fmDeleteSelected fm'
       if isFM_Archive fm
-        -- Стереть файлы из архива
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         then do closeFMArc fm'
                 let arcname = fm_arcname fm
                 exec False [["d", "--noarcext", "--", arcname]++files]
-        -- Удалить файлы на диске
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
         else mapM_ (ignoreErrors.fileRemove.(fm_dir fm </>)) files
 
 
 ----------------------------------------------------------------------------------------------------
----- Меню Tools ------------------------------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅ Tools ------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
-  -- Защитить архив от записи
-  lockAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on lockAct actionActivated $ do
     multiArchiveOperation fm' $ \archives -> do
       let msg = "0299 Lock archive(s)?"
       whenM (askOkCancel window (formatn msg [head archives, show3$ length archives])) $ do
@@ -648,34 +657,34 @@ myGUI run args = do
         for archives $ \arcname -> do
           exec False [["ch", "--noarcext", "-k", "--", arcname]]
 
-  -- Изменить комментарий архива
-  commentAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on commentAct actionActivated $ do
     msgboxOnError $
       archiveOperation fm' $
         arcinfoDialog fm' exec CommentMode
 
-  -- Преобразовать архив в SFX
-  recompressAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ SFX
+  GtkSigs.on recompressAct actionActivated $ do
     compressionOperation fm' addDialog exec "ch" RecompressMode
 
-  -- Преобразовать архив в SFX
-  toSfxAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ SFX
+  GtkSigs.on toSfxAct actionActivated $ do
     compressionOperation fm' addDialog exec "ch" MakeSFXMode
 
-  -- Преобразовать чужой архив в формат FreeArc
-  toFaAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ FreeArc
+  GtkSigs.on toFaAct actionActivated $ do
     compressionOperation fm' addDialog exec "cvt" NoMode
 
-  -- Зашифровать архив
-  encryptAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on encryptAct actionActivated $ do
     compressionOperation fm' addDialog exec "ch" EncryptionMode
 
-  -- Добавить RR в архив
-  addRrAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ RR пїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on addRrAct actionActivated $ do
     compressionOperation fm' addDialog exec "ch" ProtectionMode
 
-  -- Восстановить повреждённый архив
-  repairAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on repairAct actionActivated $ do
     multiArchiveOperation fm' $ \archives -> do
       let msg = "0381 Repair archive(s)? Repaired archive(s) will be placed into files named fixed.*"
       whenM (askOkCancel window (formatn msg [head archives, show3$ length archives])) $ do
@@ -683,36 +692,36 @@ myGUI run args = do
         for archives $ \arcname -> do
           exec False [["r", "--noarcext", "--", arcname]]
 
-  -- Модификация архивов
-  modifyAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on modifyAct actionActivated $ do
     compressionOperation fm' addDialog exec "ch" NoMode
 
-  -- Объединение архивов
-  joinAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on joinAct actionActivated $ do
     compressionOperation fm' addDialog exec "j" NoMode
 
 
 ----------------------------------------------------------------------------------------------------
----- Меню Options ----------------------------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅ Options ----------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
-  -- Окно настроек программы
-  settingsAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on settingsAct actionActivated $ do
     settingsDialog fm'
 
-  -- Действия с логфайлом
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let withLogfile action = do
         logfileHist <- fmGetHistory fm' "logfile"
         case logfileHist of
           logfile:_ | logfile>""  ->  action logfile
           _                       ->  fmErrorMsg fm' "0303 No log file specified in Settings dialog!"
 
-  -- Просмотреть логфайл
-  viewLogAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on viewLogAct actionActivated $ do
     withLogfile runViewCommand
 
-  -- Удалить логфайл
-  clearLogAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on clearLogAct actionActivated $ do
     withLogfile $ \logfile -> do
       msg <- i18n"0304 Clear logfile %1?"
       whenM (askOkCancel window (format msg logfile)) $ do
@@ -720,7 +729,7 @@ myGUI run args = do
 
 
 ----------------------------------------------------------------------------------------------------
----- Меню Help -------------------------------------------------------------------------------------
+---- пїЅпїЅпїЅпїЅ Help -------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 
   -- Home/news page for the current locale
@@ -729,7 +738,7 @@ myGUI run args = do
   forumURL <- ((aARC_WEBSITE ++ "/") ++) ==<< i18n"0457 redirects/forum.aspx"
   wikiURL  <- ((aARC_WEBSITE ++ "/") ++) ==<< i18n"0458 redirects/wiki.aspx"
 
-  -- Открыть URL
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ URL
 #ifdef FREEARC_WIN
   let openWebsite url  =  runFile url "." False
 #else
@@ -739,7 +748,7 @@ myGUI run args = do
                              return ()
 #endif
 
-  -- Открыть файл помощи
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
   let openHelp helpfile = do
         doc  <- i18n helpfile
         file <- findFile libraryFilePlaces (iif isWindows "../Documentation" "Documentation" </> doc)
@@ -747,31 +756,31 @@ myGUI run args = do
           "" -> return ()
           _  -> openWebsite ((isWindows&&&windosifyPath) file)
 
-  -- Прочитать ИД, сгенерённый для этого компьютера
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   let getUserID = do
 #ifndef FREEARC_WIN
-        -- Имитация неработающего Windows Registry для других ОС
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Windows Registry пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ
         let registryGetStr root branch key       = return Nothing
             registrySetStr root branch key value = return ()
             hKEY_LOCAL_MACHINE                   = ()
 #endif
-        -- Сначала ищем его в ини-файле
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅ
         userid <- fmGetHistory1 fm' "UserID" ""
         if userid/=""  then return (Just userid)  else do
-        -- Если не получилось - читаем ключ предыдущей инсталляции из Windows Registry...
+        -- пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ Windows Registry...
         userid <- do userid <- registryGetStr hKEY_LOCAL_MACHINE "SOFTWARE\\FreeArc" "UserID"
                      case userid of
                        Just userid -> return userid
-                                      -- ... или в крайнем случае - генерим новый
+                                      -- ... пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
                        Nothing     -> generateRandomBytes 8 >>== encode16
-        -- И записываем его повсюду
+        -- пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         registrySetStr hKEY_LOCAL_MACHINE "SOFTWARE\\FreeArc" "UserID" userid
         fmReplaceHistory fm' "UserID" userid
-        -- Возвращаем его только если запись в ини-файл была успешной
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ-пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         userid1 <- fmGetHistory1 fm' "UserID" ""
         return (if userid==userid1  then Just userid  else Nothing)
 
-  -- Возвращает True раз в сутки
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ True пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
   let daily = do
         last <- fmGetHistory1 fm' "LastCheck" ""
         now  <- getUnixTime
@@ -784,12 +793,12 @@ myGUI run args = do
   -- Size of maximum memory block we can allocate in bytes
   maxBlock <- getMaxMemToAlloc
 
-  -- Регистрирует использование программы и проверяет новости
-  --  (manual=True - ручной вызов из меню, False - ежедневная автопроверка)
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  --  (manual=True - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ, False - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
   let checkNews manual = do
         postGUIAsync$ fmStackMsg fm' "0295 Checking for updates..."
         forkIO_ $ do
-          -- Сообщим об использовании программы
+          -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
           whenJustM_ getUserID $ \userid -> do
 #ifdef FREEARC_WIN
             si <- getSystemInfo; let ramLimit = showMem (si.$siMaximumApplicationAddress.$ptrToWordPtr.$toInteger `roundTo` (4*mb))
@@ -804,16 +813,16 @@ myGUI run args = do
                                    ++ "&largest%20memory%20block=" ++ showMem (maxBlock `roundDown` (100*mb))
                                    ++ "&number%20of%20cores=" ++ show getProcessorsCount
                                    ++ "&language=" ++ urlEncode language
-            -- Сообщаем статистику и проверяем страницу новостей
+            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             handleErrors
-              -- Выполняется при недоступности страницы
+              -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
               (when manual$ postGUIAsync$ do
                   msg <- i18n"0296 Cannot open %1. Do you want to check the page with browser?"
                   whenM (askOkCancel window (format msg newsURL)) $ do
                     openWebsite newsURL)
-              -- Попытка прочитать страницу
+              -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
               (fileGetBinary url >>== (`showHex` "").crc32) $ \new_crc -> do
-            -- Страница новостей успешно прочитана
+            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             old_crc <- fmGetHistory1 fm' "news_crc" ""
             postGUIAsync$ do
             fmStackMsg fm' ""
@@ -826,7 +835,7 @@ myGUI run args = do
                whenM (askOkCancel window (format msg newsURL)) $ do
                  openWebsite newsURL
 
-  -- Дважды в час проверять отсутствие новостей
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
   forkIO_ $ do
     whenM (fmGetHistoryBool fm' "CheckNews" True) $ do
       foreverM $ do
@@ -835,32 +844,32 @@ myGUI run args = do
         sleepSeconds (30*60)
 
 
-  -- Помощь по использованию GUI
-  helpAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ GUI
+  GtkSigs.on helpAct actionActivated $ do
     openHelp "0256 FreeArc-GUI-Eng.htm"
 
-  -- Помощь по использованию командной строки
-  helpCmdAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on helpCmdAct actionActivated $ do
     openHelp "0257 FreeArc036-eng.htm"
 
-  -- Домашняя страница программы
-  homepageAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on homepageAct actionActivated $ do
     openWebsite homeURL
 
-  -- Домашняя страница программы
-  openForumAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on openForumAct actionActivated $ do
     openWebsite forumURL
 
-  -- Домашняя страница программы
-  openWikiAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on openWikiAct actionActivated $ do
     openWebsite wikiURL
 
-  -- Проверка обновлений на сайте
-  whatsnewAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+  GtkSigs.on whatsnewAct actionActivated $ do
     checkNews True
 
-  -- Диалог About
-  aboutAct `onActionActivate` do
+  -- пїЅпїЅпїЅпїЅпїЅпїЅ About
+  GtkSigs.on aboutAct actionActivated $ do
     bracketCtrlBreak "aboutDialogDestroy" aboutDialogNew widgetDestroy $ \dialog -> do
     dialog `set` [windowTransientFor   := window
                  ,aboutDialogName      := aARC_NAME
@@ -880,13 +889,12 @@ myGUI run args = do
     dialogRun dialog
     return ()
 
-  -- Включить поддержку URL в диалоге About
-  aboutDialogSetUrlHook openWebsite
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ URL пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ About
+  -- aboutDialogSetUrlHook openWebsite
 
-  -- Инициализируем состояние файл-менеджера каталогом/архивом, заданным в командной строке (при его отсутствии - текущим каталогом)
+  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
   terminateOnError $
     chdir fm' (head (args++["."]))
   fmStatusBarTotals fm'
-
   widgetShowAll window
 

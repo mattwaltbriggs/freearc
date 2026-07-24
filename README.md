@@ -2,23 +2,34 @@
 
 A port of [FreeArc 0.60 RC](http://freearc.org) (2009) to compile and run on modern **arm64 macOS** with **GHC 9.14.1** via Homebrew.
 
-FreeArc is a high-performance open-source file archiver with compression, encryption, and recovery support. The original code targeted GHC 6.6/6.8 on 32-bit Linux/Windows. This port brings it up to date for 64-bit macOS arm64 (Apple Silicon).
+FreeArc is a high-performance open-source file archiver with compression, encryption, and recovery support. The original code targeted GHC 6.6/6.8 on 32-bit Linux/Windows. This port brings it up to date for 64-bit macOS arm64 (Apple Silicon), including a working GTK+3 GUI.
 
 ## Building
 
 ### Prerequisites
 
 ```bash
-brew install ghc curl ncurses
+brew install ghc curl ncurses gtk+3
 ```
 
-### Build
+### Build CLI only
 
 ```bash
 bash buildcompile_modern.sh
 ```
 
 This compiles all C/C++ compression libraries, Lua 5.1, and the Haskell sources into `Tests/arc`. The script uses separate output directories (`c-objects/` for C/C++, `hs-objects/` for Haskell) and compiles everything directly without relying on the original makefiles (which assume x86 Linux).
+
+### Build GUI
+
+Building the GUI requires patched gtk2hs packages for GHC 9.14. Follow the steps in the [GUI build notes](#gui-build-notes) below, then:
+
+```bash
+# After building gtk2hs packages into /tmp/gtk3-packages/
+bash buildcompile_gui.sh
+```
+
+This produces `Tests/arc-gui` — a native GTK+3 file manager for FreeArc.
 
 ### Usage
 
@@ -193,6 +204,12 @@ Single-method `lzma` worked because it ran on the main thread (8MB stack). In mu
 ├── Errors.hs               Error handling
 ├── Files.hs                Filesystem operations
 ├── FileInfo.hs             File metadata
+├── GUI.hs                  GTK+3 GUI core (window, menus, dialogs)
+├── FileManager.hs          File manager main window and logic
+├── FileManPanel.hs         File list panel with selection
+├── FileManDialogs.hs       Add/Extract/Settings dialogs
+├── FileManDialogAdd.hs     Add files dialog
+├── FileManUtils.hs         FM state, config, and utilities
 ├── HsLua/src/             Lua 5.1 interpreter (Haskell + C)
 ├── Options.hs              Configuration and Lua scripting
 ├── System/
@@ -201,7 +218,8 @@ Single-method `lzma` worked because it ran on the main thread (8MB stack). In mu
 ├── Utils.hs                Utility functions
 ├── UI.hs / UIBase.hs / CUI.hs  User interface
 ├── buildcompile_modern.sh  Modern build script (macOS arm64 / GHC 9)
-└── Tests/arc               Built binary (after compilation)
+└── Tests/arc               Built CLI binary (after compilation)
+    Tests/arc-gui           Built GUI binary (after GUI compilation)
 ```
 
 ## Status
@@ -217,10 +235,46 @@ Single-method `lzma` worked because it ran on the main thread (8MB stack). In mu
 | Encryption | Compiled, untested |
 | Recovery records | Compiled, untested |
 | SFX archives | Compiled, untested |
-| GUI | Not ported (requires GTK) |
+| GUI (GTK+3) | **Working** — file navigation, archive browsing, menus, toolbar |
+
+## GUI (GTK+3)
+
+The graphical file manager has been ported to GTK+3. The GUI provides a dual-pane archive manager with menus, toolbar, directory navigation, and archive browsing.
+
+### What Works
+
+- **Window and layout**: Menu bar, toolbar, file list with columns (Name, Size, Packed, Ratio, Date, Attrs), status bar
+- **Directory navigation**: Enter directories, go up (Backspace/Up button), navigate into `.arc` archives
+- **Archive listing**: Browse archive contents with file sizes and compression ratios
+- **Menu system**: File, Commands, Tools, Options, Help menus with keyboard accelerators
+- **Toolbar**: Open, Add, Extract, Test, Info, Delete, Lock, Join, Refresh
+- **History**: Directory/archive path history with combo dropdowns
+- **Dialogs**: Add files dialog with compression options, Extract dialog, Settings dialog
+
+### GTK+3 Port Details
+
+Building the GUI required porting the gtk2hs bindings from GTK+2 to GTK+3:
+
+- **Patched glib-0.13.12.0**: Fixed `hsgclosure.c` for GHC 9.14 RTS API (`runIO_closure` → `ghc_hs_iface->runIO_closure`)
+- **Patched gtk3-0.15.10**: Added `GTK_DISABLE_DEPRECATION_WARNINGS` to handle deprecated GTK+3 APIs
+- **Signal API changes**: Converted all signal connections from GTK+2 (`widget \`onXxx\` callback`) to GTK+3 (`GtkSigs.on widget xxxSignal $ callback`)
+- **Event callbacks**: Changed from function-taking-event to monadic `EventM` style with `liftIO`
+- **ComboBoxText rewrite**: GTK+3 `ComboBoxText` no longer has an internal Entry child. Rewrote `fmEntryWithHistory` to use standalone Entry + ComboBox in a VBox
+- **Threading fix**: Removed `bg $ do` wrapper that ran the entire GUI in a background thread — GTK+3 requires the main thread on macOS (Cocoa backend). Restructured `doMain` with separate GUI and CLI code paths
+- **Safe file selection**: Bounds-checked row indices in `getSelectionFileInfo` to prevent crashes when selection is stale after directory changes
+
+### GUI Build Notes
+
+The gtk2hs packages need to be built with local patches:
+
+1. Clone and patch glib's `hsgclosure.c` for GHC 9.14 RTS
+2. Build into a local package database at `/tmp/gtk3-packages/`
+3. Use `-package-db /tmp/gtk3-packages/ -package gtk3` when compiling
+4. The GUI build uses `-DFREEARC_GUI` to enable GTK+ code paths
 
 ## Releases
 
+- [v0.61-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.61-macos-arm64) — Working GTK+3 GUI, version 0.61
 - [v0.60-rc2-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.60-rc2-macos-arm64) — Pipeline crash fix, CHECK macro heap allocation, version RC2
 - [v0.60-rc-macos-arm64](https://github.com/mattwaltbriggs/freearc/releases/tag/v0.60-rc-macos-arm64) — Initial port: all codecs, GHC 9 compatibility, 64-bit fixes
 

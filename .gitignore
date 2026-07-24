@@ -1,5 +1,6 @@
 # Build output
 Tests/arc
+Tests/arc-gui
 /tmp/
 common.mak
 
@@ -39,7 +40,8 @@ Compression/_TABI/tabi.hs
 .idea/
 *.sublime-*
 
-# Temporary files
-==
-[a]
-[show
+# Temp files
+Tests/$$temparc$$*.tmp
+
+# hs-objects build cache
+hs-objects/

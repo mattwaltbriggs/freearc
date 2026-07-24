@@ -215,10 +215,14 @@ once var action = do whenM (val var) action; var =: False
 init_once       = ref True
 
 -- |�������� �� ����� ������, ������� �� ������ ������ ���������
+doNothing0       :: IO ()
 doNothing0       = return ()
-doNothing  a     = return ()
-doNothing2 a b   = return ()
-doNothing3 a b c = return ()
+doNothing        :: a -> IO ()
+doNothing  _     = return ()
+doNothing2       :: a -> b -> IO ()
+doNothing2 _ _   = return ()
+doNothing3       :: a -> b -> c -> IO ()
+doNothing3 _ _ _ = return ()
 
 -- |������������ ���������
 ignoreErrors  =  handle (\(_ :: SomeException) -> return ())

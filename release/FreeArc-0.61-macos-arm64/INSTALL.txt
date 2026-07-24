@@ -1,0 +1,54 @@
+FreeArc 0.61 for macOS arm64 (Apple Silicon)
+=============================================
+
+FreeArc is a high-performance file archiver with compression,
+encryption, and recovery support.
+
+Requirements
+------------
+- macOS 11 or later (arm64/Apple Silicon)
+- For arc-gui: GTK+3 framework (included via Homebrew)
+
+Installation
+------------
+1. Copy "arc" and "arc-gui" to a directory in your PATH,
+   e.g. /usr/local/bin/:
+   
+   sudo cp arc arc-gui /usr/local/bin/
+
+2. Copy "arc.groups" to ~/.FreeArc/:
+   
+   mkdir -p ~/.FreeArc
+   cp arc.groups ~/.FreeArc/
+
+Usage (command line)
+---------------------
+  arc l archive.arc            List contents
+  arc a archive.arc files...   Create archive
+  arc e archive.arc            Extract (no paths)
+  arc x archive.arc            Extract with paths
+  arc t archive.arc            Test integrity
+  arc --help                   Full help
+
+Usage (GUI)
+-----------
+  arc-gui                      Launch file manager
+  arc-gui archive.arc          Open archive in file manager
+
+Double-click a .arc file in Finder to open it, or run:
+  open -a arc-gui archive.arc
+
+Compression methods
+--------------------
+  -m0       No compression (store)
+  -m1..-m9  Compression levels (1=fast, 9=best)
+  -mx       Maximum compression
+  -mdN      Set dictionary size (e.g. -md96m)
+  -mtN      Set threads (e.g. -mt4)
+
+Methods can be combined: -m4x (level 4, max mode), -ms (solid)
+
+License
+-------
+FreeArc is released under the GPL v2.
+See source code for details.

@@ -326,7 +326,7 @@ aARCHIVE_VERSION = make4byte 0 0 5 9
 aARC_VERSION_WITH_DATE = aARC_VERSION                    -- aARC_VERSION ++ " ("++aARC_DATE++")"
 aARC_HEADER_WITH_DATE  = aARC_HEADER                     -- aARC_HEADER  ++ " ("++aARC_DATE++")"
 aARC_HEADER  = aARC_NAME++" "++aARC_VERSION++" "
-aARC_VERSION = "0.60 RC2 ("++aARC_DATE++")"               --  "0.60 RC2"
+aARC_VERSION = "0.61 ("++aARC_DATE++")"               --  "0.61"
 aARC_DATE    = "July 23 2026"
 aARC_NAME    = "FreeArc"
 aARC_AUTHOR  = "Bulat Ziganshin"
@@ -651,7 +651,7 @@ hfDeleteConditionalFromHistory hf cond = ignoreErrors $ do
 
 -- |������� ������ ������� �� ��������� ����/�����
 hfGetHistory1 hf tags deflt = do x <- hfGetHistory hf tags; return (head (x++[deflt]))
-hfGetHistory  hf tags       = handle (\_ -> return []) $ do
+hfGetHistory  hf tags       = handle (\(_ :: SomeException) -> return []) $ do
   hist <- hfGetConfigFile hf
   hist.$ map (split2 '=')                           -- ������� ������ ������ �� ���+��������
       .$ filter ((split '/' tags `contains`).fst)   -- �������� ������ � ����� �� ������ tags

@@ -52,7 +52,7 @@ parseCmdline cmdline  =  (`mapMaybeM` split ";" cmdline) $ \args -> do
   (o0, _) <- parseOptions options [] []
   let no_configs = findReqList o0 "config" `contains` "-"
   env_options <- case (findReqArg o0 "env" "--") of
-                    "--" | no_configs -> return ""  -- ����� -cfg- � ��������� ������ ��������� ������������� � arc.ini, � %FREEARC
+                    "--" | no_configs -> return ""
                          | otherwise  -> getEnv aCONFIG_ENV_VAR  `catch`  (\(_ :: SomeException) -> return "")
                     "-"               -> return ""
                     env               -> getEnv env

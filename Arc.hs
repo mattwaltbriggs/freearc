@@ -59,22 +59,30 @@ arc cmdline  =  doMain (words cmdline)
 
 -- |���������� ��������� ������ � ����� ������ � ��������� ��
 doMain args  = do
+  hSetBuffering stdout LineBuffering
+  hSetBuffering stderr LineBuffering
 #ifdef FREEARC_GUI
-  bg $ do                           -- ��������� � ����� �����, �� ���������� bound thread
-#endif
+  -- GUI mode: run directly on main thread (GTK+ requires it on macOS)
+  args <- processCmdfile args
+  luaLevel "Program" [("command", unwords args)] $ do
+  parseGUIcommands run args $ \args -> do
+    uiStartProgram
+    commands <- parseCmdline args
+    mapM_ run commands
+    uiDoneProgram
+#else
+  bg $ do
   -- setUncaughtExceptionHandler removed in GHC 9; use default behavior
   return ()
-  setCtrlBreakHandler $ do          -- ���������� ��������� ^Break
+  setCtrlBreakHandler $ do
   ensureCtrlBreak "resetConsoleTitle" (resetConsoleTitle) $ do
   args <- processCmdfile args
   luaLevel "Program" [("command", unwords args)] $ do
-#ifdef FREEARC_GUI
-  parseGUIcommands run args $ \args -> do  -- ��������� GUI-����������� �������� ��������� ������
+  uiStartProgram
+  commands <- parseCmdline args
+  mapM_ run commands
+  uiDoneProgram
 #endif
-  uiStartProgram                    -- ������� UI
-  commands <- parseCmdline args     -- ���������� ��������� ������ � ������ ������ �� ����������
-  mapM_ run commands                -- ��������� ������ ���������� �������
-  uiDoneProgram                     -- ������� UI
 
  where
   handler ex  = do
